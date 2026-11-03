@@ -20,7 +20,9 @@
           }
         }
       ],
-      "./modules/alarm-kit/app.plugin.js"
+      "./modules/alarm-kit/app.plugin.js",
+      "expo-router",
+      "@react-native-community/datetimepicker"
     ]
   }
 }
