@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ayushtvora.wakeywakey"
@@ -22,7 +22,21 @@
       ],
       "./modules/alarm-kit/app.plugin.js",
       "expo-router",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Wakey Wakey uses the camera to scan the QR code or barcode that turns off your alarm.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Wakey Wakey counts your steps for the walking wake-up challenge."
+        }
+      ]
     ]
   }
 }
