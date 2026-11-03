@@ -4,7 +4,7 @@
 import AlarmKit
 import AppIntents
 import Foundation
-import WakeyAlarmKit
+internal import WakeyAlarmKit
 
 struct WakeyStopIntent: LiveActivityIntent {
   static let title: LocalizedStringResource = "Stop alarm"
