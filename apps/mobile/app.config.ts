@@ -14,6 +14,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       ...config.ios?.infoPlist,
       CFBundleDisplayName: isDev ? 'Wakey Dev' : 'Wakey Wakey',
+      // Dev only: allow plain http:// so the dev client can load from Metro over Tailscale
+      // (100.x addresses aren't "local networking" to iOS). NSAllowsLocalNetworking must NOT be
+      // set: iOS ignores NSAllowsArbitraryLoads when it is present. Production keeps Expo's default.
+      ...(isDev ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } } : {}),
     },
   },
 });
