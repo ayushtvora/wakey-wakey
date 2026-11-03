@@ -2,11 +2,25 @@
   "expo": {
     "name": "Wakey Wakey",
     "slug": "wakey-wakey",
-    "scheme": "wakeywakey",
-    "version": "0.1.0",
-    "sdkVersion": "54.0.0",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "platforms": ["ios", "android"],
-    "userInterfaceStyle": "automatic"
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ayushtvora.wakeywakey"
+    },
+    "scheme": "wakeywakey",
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "26.0"
+          }
+        }
+      ],
+      "./modules/alarm-kit/app.plugin.js"
+    ]
   }
 }

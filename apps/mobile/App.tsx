@@ -1,224 +1,192 @@
-import React, { useState } from 'react';
-import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+// AlarmKit spike: a single test screen to prove the alarm/challenge loop works on a
+// sideloaded build before the real app is built. Replaced by expo-router screens later.
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AppState,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+import AlarmKit, { type ScheduledAlarm, type WakeSession } from './modules/alarm-kit';
 
-function formatTime(hour: number, minute: number) {
-  const normalizedHour = hour.toString().padStart(2, '0');
-  const normalizedMinute = minute.toString().padStart(2, '0');
-  return `${normalizedHour}:${normalizedMinute}`;
+function makeProblem() {
+  const a = 12 + Math.floor(Math.random() * 30);
+  const b = 3 + Math.floor(Math.random() * 9);
+  const c = 10 + Math.floor(Math.random() * 90);
+  return { text: `${a} × ${b} + ${c}`, answer: a * b + c };
 }
 
 export default function App() {
-  const [selectedDay, setSelectedDay] = useState('Monday');
-  const [hour, setHour] = useState(7);
-  const [minute, setMinute] = useState(30);
+  const [auth, setAuth] = useState(AlarmKit.getAuthorizationState());
+  const [alarms, setAlarms] = useState<ScheduledAlarm[]>([]);
+  const [session, setSession] = useState<WakeSession | null>(null);
+  const [log, setLog] = useState<string[]>([]);
+  const [fastMode, setFastMode] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [answer, setAnswer] = useState('');
+  const [problem, setProblem] = useState(makeProblem);
 
-  const increaseHour = () => setHour((currentHour) => (currentHour + 1) % 24);
-  const decreaseHour = () => setHour((currentHour) => (currentHour + 23) % 24);
-  const increaseMinute = () => setMinute((currentMinute) => (currentMinute + 5) % 60);
-  const decreaseMinute = () => setMinute((currentMinute) => (currentMinute + 55) % 60);
+  const refresh = useCallback(() => {
+    setAuth(AlarmKit.getAuthorizationState());
+    setAlarms(AlarmKit.listAlarms());
+    setSession(AlarmKit.getActiveSession());
+    setLog(AlarmKit.getDebugLog().slice().reverse());
+  }, []);
+
+  useEffect(() => {
+    // Fast mode: snooze 60s / re-ring 30s so the whole loop can be tested in a few minutes.
+    if (fastMode) AlarmKit.setTimings(60, 30);
+    else AlarmKit.setTimings(300, 60);
+  }, [fastMode]);
+
+  useEffect(() => {
+    refresh();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && refresh());
+    const timer = setInterval(refresh, 2000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [refresh]);
+
+  const run = async (fn: () => Promise<unknown> | unknown) => {
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(String(e));
+    }
+    refresh();
+  };
+
+  const scheduleIn = (seconds: number) =>
+    run(() => AlarmKit.scheduleAlarm(Date.now() + seconds * 1000, 'Wake up!'));
+
+  const submitAnswer = () => {
+    if (Number(answer.trim()) === problem.answer) {
+      AlarmKit.completeSession();
+      setAnswer('');
+      setProblem(makeProblem());
+      refresh();
+    } else {
+      setError('Wrong answer, new problem.');
+      setAnswer('');
+      setProblem(makeProblem());
+    }
+  };
+
+  const timings = useMemo(() => (fastMode ? 'snooze 60s · re-ring 30s' : 'snooze 5m · re-ring 1m'), [fastMode]);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.hero}>
-        <Text style={styles.kicker}>Wakey Wakey</Text>
-        <Text style={styles.title}>Smart alarms that still wake you up.</Text>
-        <Text style={styles.description}>
-          The server stores your users, schedules, and challenges. The phone keeps the next alarm ready so it can ring even if the server is unavailable.
-        </Text>
-      </View>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="auto" />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.h1}>Wakey Wakey · AlarmKit spike</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Set alarm day and time</Text>
-        <Text style={styles.cardBody}>Pick a day of the week and adjust the time below.</Text>
+        {session && (
+          <View style={[styles.card, styles.challenge]}>
+            <Text style={styles.h2}>Challenge ({session.state})</Text>
+            <Text style={styles.muted}>
+              {session.followUpAlarmIds.length} follow-up alarm(s) scheduled. Solve to stop them.
+            </Text>
+            <Text style={styles.problem}>{problem.text} = ?</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="number-pad"
+              value={answer}
+              onChangeText={setAnswer}
+              onSubmitEditing={submitAnswer}
+              placeholder="Answer"
+            />
+            <Btn label="Submit" onPress={submitAnswer} />
+          </View>
+        )}
 
-        <View style={styles.daySelector}>
-          {DAYS_OF_WEEK.map((day) => {
-            const isSelected = day === selectedDay;
-            return (
-              <Pressable
-                key={day}
-                onPress={() => setSelectedDay(day)}
-                style={[styles.dayButton, isSelected && styles.dayButtonSelected]}
-              >
-                <Text style={[styles.dayButtonText, isSelected && styles.dayButtonTextSelected]}>{day.slice(0, 3)}</Text>
-              </Pressable>
-            );
-          })}
+        <View style={styles.card}>
+          <Text style={styles.h2}>Permission: {auth}</Text>
+          {auth !== 'authorized' && (
+            <Btn label="Request AlarmKit permission" onPress={() => run(AlarmKit.requestAuthorization)} />
+          )}
         </View>
 
-        <View style={styles.timeEditor}>
-          <View style={styles.timeColumn}>
-            <Text style={styles.timeLabel}>Hour</Text>
-            <View style={styles.timeStepper}>
-              <Pressable style={styles.stepperButton} onPress={decreaseHour}>
-                <Text style={styles.stepperButtonText}>-</Text>
-              </Pressable>
-              <Text style={styles.timeValue}>{hour.toString().padStart(2, '0')}</Text>
-              <Pressable style={styles.stepperButton} onPress={increaseHour}>
-                <Text style={styles.stepperButtonText}>+</Text>
-              </Pressable>
-            </View>
+        <View style={styles.card}>
+          <Text style={styles.h2}>Schedule a test alarm</Text>
+          <Text style={styles.muted}>{timings}</Text>
+          <View style={styles.row}>
+            <Btn label="+30 s" onPress={() => scheduleIn(30)} />
+            <Btn label="+2 min" onPress={() => scheduleIn(120)} />
+            <Btn label="+5 min" onPress={() => scheduleIn(300)} />
           </View>
-
-          <View style={styles.timeColumn}>
-            <Text style={styles.timeLabel}>Minute</Text>
-            <View style={styles.timeStepper}>
-              <Pressable style={styles.stepperButton} onPress={decreaseMinute}>
-                <Text style={styles.stepperButtonText}>-</Text>
-              </Pressable>
-              <Text style={styles.timeValue}>{minute.toString().padStart(2, '0')}</Text>
-              <Pressable style={styles.stepperButton} onPress={increaseMinute}>
-                <Text style={styles.stepperButtonText}>+</Text>
-              </Pressable>
-            </View>
-          </View>
+          <Btn
+            label={fastMode ? 'Fast mode: ON' : 'Fast mode: OFF'}
+            onPress={() => setFastMode((f) => !f)}
+            secondary
+          />
         </View>
 
-        <Text style={styles.selectionSummary}>Alarm set for {selectedDay} at {formatTime(hour, minute)}</Text>
-      </View>
+        <View style={styles.card}>
+          <Text style={styles.h2}>Scheduled alarms ({alarms.length})</Text>
+          {alarms.map((a) => (
+            <View key={a.id} style={styles.alarmRow}>
+              <Text style={styles.mono}>
+                {a.id.slice(0, 8)} · {a.state}
+                {a.fireDate ? ` · ${new Date(a.fireDate).toLocaleTimeString()}` : ''}
+                {a.title ? `\n${a.title}` : ''}
+              </Text>
+              <Btn label="Cancel" secondary onPress={() => run(() => AlarmKit.cancelAlarm(a.id))} />
+            </View>
+          ))}
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Planned challenge types</Text>
-        <Text style={styles.cardBody}>QR scan, math, reading comprehension, and puzzle unlocks.</Text>
-      </View>
+        {error && <Text style={styles.error}>{error}</Text>}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Reliability model</Text>
-        <Text style={styles.cardBody}>Server-first data, local trigger backup, and sync when connectivity returns.</Text>
-      </View>
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.h2}>Debug log</Text>
+            <Btn label="Clear" secondary onPress={() => run(AlarmKit.clearDebugLog)} />
+          </View>
+          {log.map((line, i) => (
+            <Text key={i} style={styles.mono}>
+              {line}
+            </Text>
+          ))}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+function Btn({ label, onPress, secondary }: { label: string; onPress: () => void; secondary?: boolean }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.btn, secondary && styles.btnSecondary, pressed && { opacity: 0.6 }]}>
+      <Text style={[styles.btnText, secondary && styles.btnTextSecondary]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#0d1321',
-    padding: 24,
-    gap: 16
-  },
-  hero: {
-    marginTop: 24,
-    padding: 24,
-    borderRadius: 28,
-    backgroundColor: '#1d2d44'
-  },
-  kicker: {
-    color: '#f4d35e',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 12
-  },
-  title: {
-    color: '#f8f9fa',
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '800',
-    marginBottom: 12
-  },
-  description: {
-    color: '#d9e2ec',
-    fontSize: 16,
-    lineHeight: 24
-  },
-  card: {
-    padding: 20,
-    borderRadius: 22,
-    backgroundColor: '#102a43',
-    borderWidth: 1,
-    borderColor: '#243b53'
-  },
-  cardTitle: {
-    color: '#f8f9fa',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8
-  },
-  cardBody: {
-    color: '#bcccdc',
-    fontSize: 15,
-    lineHeight: 22
-  },
-  daySelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 16
-  },
-  dayButton: {
-    width: 46,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#486581',
-    backgroundColor: '#243b53',
-    alignItems: 'center'
-  },
-  dayButtonSelected: {
-    backgroundColor: '#f4d35e',
-    borderColor: '#f4d35e'
-  },
-  dayButtonText: {
-    color: '#d9e2ec',
-    fontSize: 13,
-    fontWeight: '700'
-  },
-  dayButtonTextSelected: {
-    color: '#102a43'
-  },
-  timeEditor: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 16
-  },
-  timeColumn: {
-    flex: 1,
-    gap: 8
-  },
-  timeLabel: {
-    color: '#d9e2ec',
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  timeStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#486581',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    backgroundColor: '#243b53'
-  },
-  stepperButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#102a43',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  stepperButtonText: {
-    color: '#f8f9fa',
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '700'
-  },
-  timeValue: {
-    color: '#f8f9fa',
-    fontSize: 22,
-    fontWeight: '700'
-  },
-  selectionSummary: {
-    color: '#f4d35e',
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 16
-  }
+  safe: { flex: 1, backgroundColor: '#f4f1ec' },
+  content: { padding: 16, gap: 12 },
+  h1: { fontSize: 22, fontWeight: '700', marginTop: 8 },
+  h2: { fontSize: 16, fontWeight: '600' },
+  muted: { color: '#666' },
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, gap: 10 },
+  challenge: { borderWidth: 2, borderColor: '#f28c28' },
+  problem: { fontSize: 32, fontWeight: '700', textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, fontSize: 22, textAlign: 'center' },
+  row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  alarmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  btn: { backgroundColor: '#f28c28', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, alignItems: 'center' },
+  btnSecondary: { backgroundColor: '#eee' },
+  btnText: { color: '#fff', fontWeight: '600' },
+  btnTextSecondary: { color: '#333' },
+  mono: { fontFamily: 'Menlo', fontSize: 12, color: '#333', flexShrink: 1 },
+  error: { color: '#c0392b' },
 });
