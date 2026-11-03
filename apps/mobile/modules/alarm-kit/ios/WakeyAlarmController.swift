@@ -104,15 +104,7 @@ public final class WakeyAlarmController: @unchecked Sendable {
 
   @discardableResult
   public func scheduleAlarm(at date: Date, title: String, id: UUID = UUID()) async throws -> String {
-    let alert = AlarmPresentation.Alert(
-      title: LocalizedStringResource(stringLiteral: title),
-      secondaryButton: AlarmButton(
-        text: "Start challenge",
-        textColor: .white,
-        systemImageName: "brain.head.profile"
-      ),
-      secondaryButtonBehavior: .custom
-    )
+    let alert = makeAlert(title: title)
     let attributes = AlarmAttributes<WakeyAlarmMetadata>(
       presentation: AlarmPresentation(alert: alert, countdown: nil, paused: nil),
       metadata: WakeyAlarmMetadata(),
@@ -230,6 +222,30 @@ public final class WakeyAlarmController: @unchecked Sendable {
   }
 
   // MARK: - Private
+
+  private func makeAlert(title: String) -> AlarmPresentation.Alert {
+    let titleResource = LocalizedStringResource(stringLiteral: title)
+    let challengeButton = AlarmButton(
+      text: "Start challenge",
+      textColor: .white,
+      systemImageName: "brain.head.profile"
+    )
+    if #available(iOS 26.1, *) {
+      // 26.1+: the system supplies the Stop button itself.
+      return AlarmPresentation.Alert(
+        title: titleResource,
+        secondaryButton: challengeButton,
+        secondaryButtonBehavior: .custom
+      )
+    } else {
+      return AlarmPresentation.Alert(
+        title: titleResource,
+        stopButton: AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle"),
+        secondaryButton: challengeButton,
+        secondaryButtonBehavior: .custom
+      )
+    }
+  }
 
   private func scheduleFollowUp(in seconds: Int, reason: String, session: WakeySession) async {
     let date = Date().addingTimeInterval(TimeInterval(seconds))
