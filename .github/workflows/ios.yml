@@ -1,7 +1,9 @@
 name: iOS unsigned IPA
 
-# Builds an unsigned Release .ipa on a macOS runner. Sideload it from Windows with
-# SideStore or Sideloadly, which re-sign it with a free Apple ID.
+# Builds unsigned .ipa files on a macOS runner. Sideload them from Windows with
+# SideStore or Sideloadly, which re-sign them with a free Apple ID.
+#   production  -> "Wakey Wakey": Release build, JS bundled in. The app you rely on.
+#   development -> "Wakey Dev":   Debug dev-client build, loads JS live from Metro on the PC.
 on:
   workflow_dispatch:
   push:
@@ -20,6 +22,18 @@ jobs:
   build:
     runs-on: macos-26
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: production
+            configuration: Release
+            ipa: WakeyWakey.ipa
+          - variant: development
+            configuration: Debug
+            ipa: WakeyDev.ipa
+    env:
+      APP_VARIANT: ${{ matrix.variant }}
     steps:
       - uses: actions/checkout@v7
 
@@ -44,7 +58,7 @@ jobs:
           xcodebuild \
             -workspace WakeyWakey.xcworkspace \
             -scheme WakeyWakey \
-            -configuration Release \
+            -configuration ${{ matrix.configuration }} \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath build \
@@ -56,7 +70,7 @@ jobs:
       - name: Check App Intents metadata was extracted
         working-directory: apps/mobile/ios
         run: |
-          APP=build/Build/Products/Release-iphoneos/WakeyWakey.app
+          APP=build/Build/Products/${{ matrix.configuration }}-iphoneos/WakeyWakey.app
           ls "$APP/Metadata.appintents" || { echo "::error::No App Intents metadata in app bundle"; exit 1; }
           grep -rq WakeyStartChallengeIntent "$APP/Metadata.appintents" \
             || { echo "::error::Wakey intents missing from App Intents metadata"; exit 1; }
@@ -65,17 +79,17 @@ jobs:
         working-directory: apps/mobile/ios
         run: |
           mkdir -p Payload
-          cp -R build/Build/Products/Release-iphoneos/WakeyWakey.app Payload/
-          zip -qry WakeyWakey.ipa Payload
+          cp -R build/Build/Products/${{ matrix.configuration }}-iphoneos/WakeyWakey.app Payload/
+          zip -qry ${{ matrix.ipa }} Payload
 
       - uses: actions/upload-artifact@v7
         with:
-          name: WakeyWakey-ipa-${{ github.run_number }}
-          path: apps/mobile/ios/WakeyWakey.ipa
+          name: ${{ matrix.variant }}-ipa-${{ github.run_number }}
+          path: apps/mobile/ios/${{ matrix.ipa }}
           retention-days: 30
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: xcodebuild-log
+          name: xcodebuild-log-${{ matrix.variant }}
           path: apps/mobile/ios/xcodebuild.log
