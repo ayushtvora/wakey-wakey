@@ -11,6 +11,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     ...config.ios,
     bundleIdentifier: isDev ? 'com.ayushtvora.wakeywakey.dev' : 'com.ayushtvora.wakeywakey',
+    // CI sets this to the run number so every build is newer than the last one, which
+    // SideStore needs to offer it as an update.
+    ...(process.env.BUILD_NUMBER ? { buildNumber: process.env.BUILD_NUMBER } : {}),
     // Locked alarm clock. Wakey Dev is blue so the two apps are easy to tell apart.
     // Sources and the variant generator are in assets/icon-src.
     icon: isDev

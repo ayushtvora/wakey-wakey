@@ -4,6 +4,9 @@ name: iOS unsigned IPA
 # SideStore or Sideloadly, which re-sign them with a free Apple ID.
 #   production  -> "Wakey Wakey": Release build, JS bundled in. The app you rely on.
 #   development -> "Wakey Dev":   Debug dev-client build, loads JS live from Metro on the PC.
+# Builds of main are also published as a GitHub release with a SideStore source, so the
+# phone can install and update both apps from:
+#   https://github.com/<repo>/releases/latest/download/source.json
 on:
   workflow_dispatch:
   push:
@@ -34,6 +37,7 @@ jobs:
             ipa: WakeyDev.ipa
     env:
       APP_VARIANT: ${{ matrix.variant }}
+      BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v7
 
@@ -81,6 +85,7 @@ jobs:
           mkdir -p Payload
           cp -R build/Build/Products/${{ matrix.configuration }}-iphoneos/WakeyWakey.app Payload/
           zip -qry ${{ matrix.ipa }} Payload
+          plutil -convert json -o ${{ matrix.variant }}.info.json Payload/WakeyWakey.app/Info.plist
 
       - uses: actions/upload-artifact@v7
         with:
@@ -89,7 +94,42 @@ jobs:
           retention-days: 30
 
       - uses: actions/upload-artifact@v7
+        with:
+          name: meta-${{ matrix.variant }}-${{ github.run_number }}
+          path: apps/mobile/ios/${{ matrix.variant }}.info.json
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: xcodebuild-log-${{ matrix.variant }}
           path: apps/mobile/ios/xcodebuild.log
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: build-${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: '*-${{ github.run_number }}'
+          merge-multiple: true
+          path: dist
+
+      - name: Make SideStore source
+        run: node .github/scripts/make-source.mjs dist "$TAG" > dist/source.json
+
+      - name: Create release
+        run: |
+          gh release create "$TAG" dist/WakeyWakey.ipa dist/WakeyDev.ipa dist/source.json             --target "$GITHUB_SHA" --latest             --title "Build ${{ github.run_number }}"             --notes "$(git log -1 --format=%s "$GITHUB_SHA")"
+
+      - name: Keep only the newest 5 builds
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[].tagName'             | grep '^build-' | sort -t- -k2 -n -r | tail -n +6             | xargs -r -n1 gh release delete --cleanup-tag -y
