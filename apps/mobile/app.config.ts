@@ -11,6 +11,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     ...config.ios,
     bundleIdentifier: isDev ? 'com.ayushtvora.wakeywakey.dev' : 'com.ayushtvora.wakeywakey',
+    // Locked alarm clock. Wakey Dev is blue so the two apps are easy to tell apart.
+    // Sources and the variant generator are in assets/icon-src.
+    icon: isDev
+      ? './assets/icon-dev.png'
+      : {
+          light: './assets/icon.png',
+          dark: './assets/icon-dark.png',
+          tinted: './assets/icon-tinted.png',
+        },
     infoPlist: {
       ...config.ios?.infoPlist,
       CFBundleDisplayName: isDev ? 'Wakey Dev' : 'Wakey Wakey',

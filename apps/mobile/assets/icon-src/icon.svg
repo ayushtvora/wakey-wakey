@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2140"/>
+      <stop offset="1" stop-color="#0a0d1c"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset="1" stop-color="#ff7a1a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.5">
+      <stop offset="0" stop-color="#ff8a2a" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="560" r="420" fill="url(#glow)"/>
+  <!-- padlock shackle as the clock's top handle -->
+  <path d="M392 330 V250 a120 120 0 0 1 240 0 V330" fill="none" stroke="url(#metal)" stroke-width="56" stroke-linecap="round"/>
+  <!-- bells: domes tilted outward -->
+  <g transform="rotate(-38 330 330)"><path d="M210 360 a120 120 0 0 1 240 0 z" fill="url(#metal)"/><rect x="316" y="360" width="28" height="40" rx="8" fill="#ff7a1a"/></g>
+  <g transform="rotate(38 694 330)"><path d="M574 360 a120 120 0 0 1 240 0 z" fill="url(#metal)"/><rect x="680" y="360" width="28" height="40" rx="8" fill="#ff7a1a"/></g>
+  <!-- legs -->
+  <path d="M340 800 L280 890" stroke="url(#metal)" stroke-width="52" stroke-linecap="round"/>
+  <path d="M684 800 L744 890" stroke="url(#metal)" stroke-width="52" stroke-linecap="round"/>
+  <!-- body -->
+  <circle cx="512" cy="580" r="290" fill="url(#metal)"/>
+  <circle cx="512" cy="580" r="236" fill="#12162b"/>
+  <!-- tick marks -->
+  <g stroke="#ffb347" stroke-width="22" stroke-linecap="round">
+    <line x1="512" y1="372" x2="512" y2="410"/>
+    <line x1="512" y1="750" x2="512" y2="788"/>
+    <line x1="304" y1="580" x2="342" y2="580"/>
+    <line x1="682" y1="580" x2="720" y2="580"/>
+  </g>
+  <!-- keyhole: one shape, one fill -->
+  <path d="M484 600 A62 62 0 1 1 540 600 L566 696 H458 Z" fill="#ff9a35"/>
+</svg>
