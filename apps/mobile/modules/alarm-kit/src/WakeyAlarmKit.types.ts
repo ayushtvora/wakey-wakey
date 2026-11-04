@@ -38,6 +38,15 @@ export interface ScheduledAlarm {
   fireDate?: number;
 }
 
+/** Free Apple ID installs expire 7 days after signing; alarms stop ringing then. */
+export interface SigningInfo {
+  /** epoch ms */
+  expiresAt: number;
+  /** epoch ms (when the app was signed) */
+  createdAt?: number;
+  teamName?: string;
+}
+
 export interface PunishmentSettings {
   enabled: boolean;
   webhookUrl: string;

@@ -6,6 +6,7 @@ import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 're
 import AlarmKit, { type ScheduledAlarm, type WakeSession } from '../../modules/alarm-kit';
 import { Button, Card, SectionTitle, colors, text } from '../components/ui';
 import { formatDateTime } from '../lib/format';
+import { getExpiryStatus } from '../lib/signing';
 import { updateSettings, useAppState } from '../lib/store';
 import { reconcile, sendDiscord, toWakeRecord } from '../lib/wake';
 
@@ -112,6 +113,13 @@ export default function Settings() {
         <>
           <Card>
             <Text style={text.h2}>Permission: {AlarmKit.getAuthorizationState()}</Text>
+            <Text style={styles.mono}>
+              {(() => {
+                const e = getExpiryStatus();
+                if (!e) return 'Signing: no provisioning profile (or old build)';
+                return `Signed ${e.createdAt ? formatDateTime(e.createdAt) : '?'} · expires ${formatDateTime(e.expiresAt)}${e.teamName ? ` · ${e.teamName}` : ''}`;
+              })()}
+            </Text>
             <Text style={text.h2}>Scheduled in AlarmKit ({scheduled.length})</Text>
             {scheduled.map((a) => (
               <Text key={a.id} style={styles.mono}>

@@ -83,6 +83,14 @@ public class WakeyAlarmKitModule: Module {
       self.controller.setItem(key, value)
     }
 
+    Function("getSigningInfo") { () -> [String: Any]? in
+      WakeySigning.provisioningInfo()?.asDictionary()
+    }
+
+    AsyncFunction("scheduleExpiryReminders") { () async -> [Double] in
+      await WakeySigning.scheduleReminders()
+    }
+
     Function("getDebugLog") { () -> [String] in
       self.controller.debugLog()
     }
