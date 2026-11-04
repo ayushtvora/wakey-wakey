@@ -12,6 +12,7 @@ import {
 } from '@wakey/core';
 
 import AlarmKit, { type WakeSession } from '../../modules/alarm-kit';
+import { scheduleExpiryReminders } from './signing';
 import { getState, replaceAlarms, syncNative, updateSettings, type StoredAlarm } from './store';
 
 const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -129,6 +130,7 @@ async function doReconcile(): Promise<void> {
     currentStreak: risk,
   });
   await syncNative();
+  await scheduleExpiryReminders();
 
   // 4. Overdue mornings nobody has punished yet.
   if (!settings.punishmentEnabled || !webhookOk) return;

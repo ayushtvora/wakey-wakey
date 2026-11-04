@@ -5,7 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 
 import AlarmKit, { type WakeSession } from '../../modules/alarm-kit';
 import { Button, Card, colors, text } from '../components/ui';
-import { formatTime } from '../lib/format';
+import { formatDateTime, formatTime } from '../lib/format';
+import { describeTimeLeft, getExpiryStatus } from '../lib/signing';
 import { setAlarmEnabled, useAppState } from '../lib/store';
 import { computeStreaks, reconcile } from '../lib/wake';
 
@@ -14,6 +15,7 @@ export default function Home() {
   const [history, setHistory] = useState<WakeSession[]>([]);
   const [active, setActive] = useState<WakeSession | null>(null);
   const [auth, setAuth] = useState(AlarmKit.getAuthorizationState());
+  const [expiry, setExpiry] = useState(getExpiryStatus);
 
   useFocusEffect(
     useCallback(() => {
@@ -21,6 +23,7 @@ export default function Home() {
         setHistory(AlarmKit.getHistory());
         setActive(AlarmKit.getActiveSession());
         setAuth(AlarmKit.getAuthorizationState());
+        setExpiry(getExpiryStatus());
       };
       refresh();
       reconcile().then(refresh, refresh);
@@ -55,6 +58,21 @@ export default function Home() {
           {auth !== 'denied' ? (
             <Button label="Allow" onPress={() => AlarmKit.requestAuthorization().then(setAuth)} />
           ) : null}
+        </Card>
+      ) : null}
+
+      {expiry && expiry.level !== 'ok' ? (
+        <Card style={[styles.warning, expiry.level !== 'soon' && { borderColor: colors.danger }]}>
+          <Text style={text.h2}>
+            {expiry.level === 'expired'
+              ? '⚠️ This install has expired'
+              : `⚠️ App expires in ${describeTimeLeft(expiry.msLeft)}`}
+          </Text>
+          <Text style={text.body}>
+            {expiry.level === 'expired'
+              ? 'Alarms will not ring. Reinstall with Sideloadly now.'
+              : `On ${formatDateTime(expiry.expiresAt)} the app stops opening and your alarms stop ringing. Reinstall with Sideloadly (or refresh in SideStore) before then.`}
+          </Text>
         </Card>
       ) : null}
 
@@ -97,6 +115,11 @@ export default function Home() {
 
       <Button label="+ New alarm" onPress={() => router.push({ pathname: '/alarm/[id]', params: { id: 'new' } })} />
       <Button label="Settings" variant="secondary" onPress={() => router.push('/settings')} />
+      {expiry && expiry.level === 'ok' ? (
+        <Text style={[text.muted, styles.footer]}>
+          Install expires {formatDateTime(expiry.expiresAt)} ({describeTimeLeft(expiry.msLeft)})
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -108,5 +131,6 @@ const styles = StyleSheet.create({
   streakNumber: { color: colors.text, fontSize: 32, fontWeight: '800' },
   warning: { borderWidth: 1, borderColor: colors.accent },
   alarmTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  footer: { textAlign: 'center' },
   time: { color: colors.text, fontSize: 44, fontWeight: '300', fontVariant: ['tabular-nums'] },
 });

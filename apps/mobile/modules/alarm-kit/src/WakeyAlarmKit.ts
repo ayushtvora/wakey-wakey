@@ -5,6 +5,7 @@ import type {
   AuthorizationState,
   PunishmentSettings,
   ScheduledAlarm,
+  SigningInfo,
   WakeSession,
 } from './WakeyAlarmKit.types';
 
@@ -26,6 +27,13 @@ declare class WakeyAlarmKitModule extends NativeModule {
   setPunishmentSettings(settings: PunishmentSettings): void;
   getItem(key: string): string | null;
   setItem(key: string, value: string | null): void;
+  /** From the embedded provisioning profile; null on builds without one. */
+  getSigningInfo(): SigningInfo | null;
+  /**
+   * Schedules "app expires soon" notifications (asks for notification permission the first
+   * time). Idempotent per expiry date. Returns the pending reminder times (epoch ms).
+   */
+  scheduleExpiryReminders(): Promise<number[]>;
   getDebugLog(): string[];
   clearDebugLog(): void;
 }
