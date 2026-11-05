@@ -9,6 +9,7 @@ import { formatDateTime } from '../lib/format';
 import { getExpiryStatus } from '../lib/signing';
 import { updateSettings, useAppState } from '../lib/store';
 import { reconcile, sendDiscord, toWakeRecord } from '../lib/wake';
+import { fetchWatchdogStatus, getWatchdogInfo, watchdogActive, watchdogConfigured } from '../lib/watchdog';
 
 export default function Settings() {
   const { settings } = useAppState();
@@ -16,6 +17,8 @@ export default function Settings() {
   const [scheduled, setScheduled] = useState<ScheduledAlarm[]>([]);
   const [log, setLog] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [watchdog, setWatchdog] = useState(getWatchdogInfo);
+  const [checking, setChecking] = useState(false);
 
   const refresh = useCallback(() => {
     setHistory(AlarmKit.getHistory().slice().reverse());
@@ -23,6 +26,18 @@ export default function Settings() {
     setLog(AlarmKit.getDebugLog().slice().reverse());
   }, []);
   useFocusEffect(refresh);
+  useFocusEffect(
+    useCallback(() => {
+      fetchWatchdogStatus().then(() => setWatchdog(getWatchdogInfo()));
+    }, []),
+  );
+
+  const connectWatchdog = async () => {
+    setChecking(true);
+    await reconcile().catch(() => {});
+    setWatchdog(getWatchdogInfo());
+    setChecking(false);
+  };
 
   const webhookValid = isDiscordWebhookUrl(settings.webhookUrl);
 
@@ -82,9 +97,45 @@ export default function Settings() {
         </View>
         <Button label="Send test message" variant="secondary" disabled={!webhookValid} onPress={sendTest} />
         <Text style={text.muted}>
-          The message is sent the next time you touch the alarm or open the app after the 10 minutes, so it can't
-          reach Discord while the phone is off.
+          {watchdogActive()
+            ? 'The watchdog sends the message on time, even if this phone is asleep, off or offline.'
+            : "Without the watchdog, the message is sent the next time you touch the alarm or open the app after the 10 minutes, so it can't reach Discord while the phone is off."}
         </Text>
+      </Card>
+
+      <SectionTitle>Watchdog</SectionTitle>
+      <Card>
+        <Text style={text.body}>
+          A small always-on server that knows your alarm times and posts to Discord at the deadline if this phone
+          hasn't reported you finished.
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={settings.watchdogUrl ?? ''}
+          onChangeText={(watchdogUrl) => updateSettings({ watchdogUrl })}
+          placeholder="Watchdog URL (https://…workers.dev)"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+        />
+        <TextInput
+          style={styles.input}
+          value={settings.watchdogKey ?? ''}
+          onChangeText={(watchdogKey) => updateSettings({ watchdogKey })}
+          placeholder="Watchdog key"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+        />
+        <Button
+          label={checking ? 'Connecting…' : 'Connect and send schedule'}
+          variant="secondary"
+          disabled={!watchdogConfigured(settings) || checking}
+          onPress={connectWatchdog}
+        />
+        {watchdogConfigured(settings) ? <WatchdogInfo info={watchdog} lastSyncAt={settings.lastWatchdogSyncAt} /> : null}
       </Card>
 
       <SectionTitle>History</SectionTitle>
@@ -142,6 +193,38 @@ export default function Settings() {
         </>
       ) : null}
     </ScrollView>
+  );
+}
+
+function WatchdogInfo({
+  info,
+  lastSyncAt,
+}: {
+  info: ReturnType<typeof getWatchdogInfo>;
+  lastSyncAt?: number;
+}) {
+  const { status, error } = info;
+  return (
+    <View style={{ gap: 4 }}>
+      {error ? <Text style={text.error}>{error}</Text> : null}
+      <Text style={text.muted}>
+        {lastSyncAt ? `Last synced ${formatDateTime(lastSyncAt)}` : 'Not synced yet'}
+        {status && !status.enabled ? ' · punishment is off' : ''}
+      </Text>
+      {status?.nextCheckAt ? <Text style={text.muted}>Next check {formatDateTime(status.nextCheckAt)}</Text> : null}
+      {status?.upcoming.map((u) => (
+        <Text key={`${u.label}${u.at}`} style={styles.mono}>
+          {formatDateTime(u.at)} · {u.label}
+          {u.isTest ? ' (test)' : ''}
+        </Text>
+      ))}
+      {status?.recent.map((r) => (
+        <Text key={`r${r.label}${r.at}`} style={styles.mono}>
+          {formatDateTime(r.at)} · {r.label}
+          {r.isTest ? ' (test)' : ''} · {r.result}
+        </Text>
+      ))}
+    </View>
   );
 }
 

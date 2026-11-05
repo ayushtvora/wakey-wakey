@@ -9,6 +9,6 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev": "npm run dev --workspace @wakey/mobile",
-    "test": "npm test --workspace @wakey/core"
+    "test": "npm test --workspaces --if-present"
   }
 }
