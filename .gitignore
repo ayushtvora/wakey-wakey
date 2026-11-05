@@ -21,3 +21,6 @@ pnpm-debug.log*
 # Cloudflare Wrangler local state
 .wrangler/
 .dev.vars
+
+# Dev server log (scripts/dev-server.mjs)
+.dev-server.log

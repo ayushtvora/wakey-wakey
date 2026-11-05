@@ -27,7 +27,8 @@
   "scripts": {
     "start": "expo start",
     "typecheck": "tsc --noEmit",
-    "dev": "expo start --dev-client --scheme wakeywakey-dev --port 19081"
+    "dev": "expo start --dev-client --scheme wakeywakey-dev --port 19081",
+    "dev:remote": "node scripts/dev-server.mjs"
   },
   "private": true
 }

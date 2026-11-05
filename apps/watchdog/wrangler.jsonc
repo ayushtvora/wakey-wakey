@@ -1,6 +1,8 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "wakey-watchdog",
+  // Not secret; lets CI deploy with just an API token.
+  "account_id": "9e935dcf1f9ee108c9a02b13931a902f",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "durable_objects": {

@@ -14,7 +14,10 @@ How it works:
 
 Runs on the Workers **free plan** (SQLite-backed Durable Objects).
 
-## Deploy (from this folder)
+## Deploy
+
+Pushing to `main` deploys automatically (`.github/workflows/watchdog.yml`) once the repo secret
+`CLOUDFLARE_API_TOKEN` is set. To deploy by hand from this folder:
 
 ```sh
 npx wrangler login                    # once; opens the browser
