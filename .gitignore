@@ -17,3 +17,7 @@ pnpm-debug.log*
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Cloudflare Wrangler local state
+.wrangler/
+.dev.vars

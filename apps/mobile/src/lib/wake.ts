@@ -14,6 +14,7 @@ import {
 import AlarmKit, { type WakeSession } from '../../modules/alarm-kit';
 import { scheduleExpiryReminders } from './signing';
 import { getState, replaceAlarms, syncNative, updateSettings, type StoredAlarm } from './store';
+import { syncWatchdog, watchdogActive } from './watchdog';
 
 const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 /** Don't send punishments for mornings older than this (e.g. the app wasn't opened for days). */
@@ -120,11 +121,16 @@ async function doReconcile(): Promise<void> {
   });
   if (changed) replaceAlarms(nextAlarms);
 
-  // 3. Keep native in sync (punishment settings incl. streak, scheduled alarms).
+  // 3. Keep the watchdog and native in sync (punishment settings incl. streak, scheduled alarms).
   const risk = streakAtRisk(history, now);
   const webhookOk = isDiscordWebhookUrl(settings.webhookUrl);
+  const wantPunish = settings.punishmentEnabled && webhookOk;
+  await syncWatchdog({ enabled: wantPunish, streak: risk, now });
+  // While the watchdog has the schedule it sends every punishment; the phone only steps in
+  // if it hasn't been able to reach the watchdog for days.
+  const phonePunishes = wantPunish && !watchdogActive(now);
   AlarmKit.setPunishmentSettings({
-    enabled: settings.punishmentEnabled && webhookOk,
+    enabled: phonePunishes,
     webhookUrl: settings.webhookUrl.trim(),
     userName: settings.userName.trim(),
     currentStreak: risk,
@@ -133,7 +139,7 @@ async function doReconcile(): Promise<void> {
   await scheduleExpiryReminders();
 
   // 4. Overdue mornings nobody has punished yet.
-  if (!settings.punishmentEnabled || !webhookOk) return;
+  if (!phonePunishes) return;
   for (const s of history) {
     if (now - s.firstRangAt > MAX_PUNISH_AGE_MS) continue;
     if (!shouldPunish(toWakeRecord(s), now)) continue;

@@ -8,6 +8,7 @@ import AlarmKit from '../../../modules/alarm-kit';
 import { ChainEditor } from '../../components/ChainEditor';
 import { Button, Chip, SectionTitle, Stepper, colors, text } from '../../components/ui';
 import { deleteAlarm, getAlarm, newAlarm, saveAlarm, toSpec, type StoredAlarm } from '../../lib/store';
+import { reportTestAlarm } from '../../lib/watchdog';
 
 const DAY_LABELS: [Weekday, string][] = [
   [1, 'M'],
@@ -59,6 +60,7 @@ export default function EditAlarm() {
     // Save first so the challenge screen finds this exact chain when the test alarm rings.
     await saveAlarm(alarm);
     await AlarmKit.scheduleTestAlarm(toSpec(alarm), 60);
+    await reportTestAlarm(alarm, Date.now() + 60_000);
     Alert.alert('Test alarm set', 'It will ring in about 1 minute. Lock your phone to try the full flow.');
   };
 
