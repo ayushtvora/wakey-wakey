@@ -46,6 +46,23 @@ struct WakeyStartChallengeIntent: LiveActivityIntent {
   }
 }
 
+/// Shortcuts action for the "Refresh Wakey" shortcut, placed right after SideStore's
+/// "Refresh All Apps" (which stops the shortcut if the refresh fails). SideStore's refresh
+/// doesn't change the app bundle, so this is how the app learns its new expiry date.
+struct WakeyRecordRefreshIntent: AppIntent {
+  static let title: LocalizedStringResource = "Record SideStore Refresh"
+  static let description = IntentDescription(
+    "Run right after SideStore's Refresh All Apps so Wakey knows the app was re-signed and when it expires next.")
+  static let supportedModes: IntentModes = .background
+
+  init() {}
+
+  func perform() async throws -> some IntentResult {
+    await WakeySigning.recordRefresh()
+    return .result()
+  }
+}
+
 /// Looked up by WakeyAlarmController via NSClassFromString("WakeyIntentProvider").
 @objc(WakeyIntentProvider)
 final class WakeyIntentProvider: NSObject, WakeyIntentProviding {

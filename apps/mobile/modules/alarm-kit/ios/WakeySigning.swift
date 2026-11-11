@@ -2,24 +2,71 @@ import Foundation
 import UserNotifications
 
 /// Free-Apple-ID installs stop launching when their provisioning profile expires (7 days),
-/// and their AlarmKit alarms stop ringing with them. This reads the expiry date from the
-/// profile embedded in the app and schedules local reminders before it.
-enum WakeySigning {
-  struct Info {
+/// and their AlarmKit alarms stop ringing with them.
+///
+/// The profile embedded in the app is the one from the install. A SideStore refresh only
+/// installs a new profile on the device and leaves the app bundle alone, so the embedded date
+/// goes stale after the first refresh. The "Record SideStore refresh" Shortcuts action (run
+/// right after SideStore's "Refresh All Apps") stores the refresh time, and the expiry is the
+/// later of the embedded date and that refresh + 7 days.
+public enum WakeySigning {
+  public struct Info {
+    /// Best known expiry: the later of `installExpiresAt` and `lastRefreshAt` + 7 days.
     let expiresAt: Date
+    /// From the profile embedded in the app (the install's own profile).
+    let installExpiresAt: Date
+    let lastRefreshAt: Date?
     let createdAt: Date?
     let teamName: String?
 
     func asDictionary() -> [String: Any] {
-      var d: [String: Any] = ["expiresAt": expiresAt.timeIntervalSince1970 * 1000]
+      var d: [String: Any] = [
+        "expiresAt": expiresAt.timeIntervalSince1970 * 1000,
+        "installExpiresAt": installExpiresAt.timeIntervalSince1970 * 1000,
+      ]
+      if let lastRefreshAt { d["lastRefreshAt"] = lastRefreshAt.timeIntervalSince1970 * 1000 }
       if let createdAt { d["createdAt"] = createdAt.timeIntervalSince1970 * 1000 }
       if let teamName { d["teamName"] = teamName }
       return d
     }
   }
 
+  /// Free-account profiles last 7 days from signing.
+  static let profileLifetime: TimeInterval = 7 * 24 * 3600
+  private static let lastRefreshKey = "wakey.lastRefreshAt"
+
+  public static var lastRefreshAt: Date? {
+    UserDefaults.standard.object(forKey: lastRefreshKey) as? Date
+  }
+
+  /// Called by the Shortcuts action after a successful SideStore refresh.
+  @discardableResult
+  public static func recordRefresh(at date: Date = Date()) async -> [Double] {
+    UserDefaults.standard.set(date, forKey: lastRefreshKey)
+    WakeyAlarmController.shared.log("SideStore refresh recorded")
+    return await scheduleReminders()
+  }
+
+  static func info() -> Info? {
+    guard let embedded = provisioningInfo() else { return nil }
+    let refreshed = lastRefreshAt
+    let fromRefresh = refreshed.map { $0.addingTimeInterval(profileLifetime) }
+    return Info(
+      expiresAt: max(embedded.expiresAt, fromRefresh ?? .distantPast),
+      installExpiresAt: embedded.expiresAt,
+      lastRefreshAt: refreshed,
+      createdAt: embedded.createdAt,
+      teamName: embedded.teamName)
+  }
+
+  private struct Embedded {
+    let expiresAt: Date
+    let createdAt: Date?
+    let teamName: String?
+  }
+
   /// nil when there is no embedded profile (simulator, or an App Store build).
-  static func provisioningInfo() -> Info? {
+  private static func provisioningInfo() -> Embedded? {
     guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
       let data = try? Data(contentsOf: url)
     else { return nil }
@@ -32,7 +79,7 @@ enum WakeySigning {
       let plist = try? PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any],
       let expiresAt = plist["ExpirationDate"] as? Date
     else { return nil }
-    return Info(
+    return Embedded(
       expiresAt: expiresAt,
       createdAt: plist["CreationDate"] as? Date,
       teamName: plist["TeamName"] as? String)
@@ -57,11 +104,12 @@ enum WakeySigning {
       .sorted()
   }
 
-  /// Idempotent: keeps existing reminders if they were made for this same expiry date.
+  /// Idempotent: keeps existing reminders if they were made for this same expiry date, and
+  /// replaces them when the date moves (a recorded refresh).
   /// Returns the reminder times (epoch ms) now pending, or [] without notification permission.
   static func scheduleReminders() async -> [Double] {
     let center = UNUserNotificationCenter.current()
-    guard let info = provisioningInfo() else { return [] }
+    guard let info = Self.info() else { return [] }
     let tag = "\(prefix)\(Int(info.expiresAt.timeIntervalSince1970))."
 
     let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix(prefix) }

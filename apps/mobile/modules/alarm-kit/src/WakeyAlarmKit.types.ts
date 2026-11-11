@@ -40,8 +40,12 @@ export interface ScheduledAlarm {
 
 /** Free Apple ID installs expire 7 days after signing; alarms stop ringing then. */
 export interface SigningInfo {
-  /** epoch ms */
+  /** epoch ms. Best known expiry: the later of the install's profile and last recorded refresh + 7 days. */
   expiresAt: number;
+  /** epoch ms. From the profile embedded at install; SideStore refreshes don't update it. */
+  installExpiresAt?: number;
+  /** epoch ms. Last "Record SideStore Refresh" Shortcuts action run. */
+  lastRefreshAt?: number;
   /** epoch ms (when the app was signed) */
   createdAt?: number;
   teamName?: string;
