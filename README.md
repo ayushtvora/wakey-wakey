@@ -66,7 +66,7 @@ On the phone, the first time:
 - trust your Apple ID under **Settings → General → VPN & Device Management**
 - turn on **Developer Mode** under **Settings → Privacy & Security**
 
-The app shows when the install expires, warns 3 days before, and sends reminder notifications.
+The app shows when the install expires, warns 3 days before, and sends reminder notifications. A SideStore refresh doesn't change the app itself, so the app can't see it on its own: add Wakey's **Record SideStore Refresh** action right after SideStore's **Refresh All Apps** in the refresh shortcut. Without it, the app only knows the date from the original install, and once that passes it points you to SideStore's **My Apps** for the date.
 
 ## Development
 

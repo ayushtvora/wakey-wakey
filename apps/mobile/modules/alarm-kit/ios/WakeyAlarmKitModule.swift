@@ -84,7 +84,7 @@ public class WakeyAlarmKitModule: Module {
     }
 
     Function("getSigningInfo") { () -> [String: Any]? in
-      WakeySigning.provisioningInfo()?.asDictionary()
+      WakeySigning.info()?.asDictionary()
     }
 
     AsyncFunction("scheduleExpiryReminders") { () async -> [Double] in

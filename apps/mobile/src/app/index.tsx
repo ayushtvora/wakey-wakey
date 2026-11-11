@@ -61,17 +61,15 @@ export default function Home() {
         </Card>
       ) : null}
 
-      {expiry && expiry.level !== 'ok' ? (
-        <Card style={[styles.warning, expiry.level !== 'soon' && { borderColor: colors.danger }]}>
-          <Text style={text.h2}>
-            {expiry.level === 'expired'
-              ? '⚠️ This install has expired'
-              : `⚠️ App expires in ${describeTimeLeft(expiry.msLeft)}`}
-          </Text>
+      {expiry && (expiry.level === 'soon' || expiry.level === 'urgent') ? (
+        <Card style={[styles.warning, expiry.level === 'urgent' && { borderColor: colors.danger }]}>
+          <Text style={text.h2}>⚠️ App expires in {describeTimeLeft(expiry.msLeft)}</Text>
           <Text style={text.body}>
-            {expiry.level === 'expired'
-              ? 'Alarms will not ring. Refresh it in SideStore (or reinstall with Sideloadly) now.'
-              : `On ${formatDateTime(expiry.expiresAt)} the app stops opening and your alarms stop ringing. Refresh it in SideStore (or reinstall with Sideloadly) before then.`}
+            On {formatDateTime(expiry.expiresAt)} the app stops opening and your alarms stop ringing. Refresh it in
+            SideStore (or reinstall with Sideloadly) before then.
+            {expiry.lastRefreshAt
+              ? ` Last refresh: ${formatDateTime(expiry.lastRefreshAt)}. Check that your Refresh Wakey shortcut is still running.`
+              : ''}
           </Text>
         </Card>
       ) : null}
@@ -118,6 +116,13 @@ export default function Home() {
       {expiry && expiry.level === 'ok' ? (
         <Text style={[text.muted, styles.footer]}>
           Install expires {formatDateTime(expiry.expiresAt)} ({describeTimeLeft(expiry.msLeft)})
+          {expiry.lastRefreshAt ? ` · refreshed ${formatDateTime(expiry.lastRefreshAt)}` : ''}
+        </Text>
+      ) : null}
+      {expiry && expiry.level === 'unknown' ? (
+        <Text style={[text.muted, styles.footer]}>
+          Refreshed in SideStore; check its My Apps tab for the expiry date. Add Wakey&apos;s &quot;Record SideStore
+          Refresh&quot; action after &quot;Refresh All Apps&quot; in your shortcut so this app can track it.
         </Text>
       ) : null}
     </ScrollView>

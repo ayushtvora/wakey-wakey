@@ -168,7 +168,14 @@ export default function Settings() {
               {(() => {
                 const e = getExpiryStatus();
                 if (!e) return 'Signing: no provisioning profile (or old build)';
-                return `Signed ${e.createdAt ? formatDateTime(e.createdAt) : '?'} · expires ${formatDateTime(e.expiresAt)}${e.teamName ? ` · ${e.teamName}` : ''}`;
+                const parts = [
+                  `Signed ${e.createdAt ? formatDateTime(e.createdAt) : '?'}`,
+                  `install profile expires ${formatDateTime(e.installExpiresAt ?? e.expiresAt)}`,
+                  e.lastRefreshAt ? `last refresh ${formatDateTime(e.lastRefreshAt)}` : 'no refresh recorded',
+                  `expiry ${e.level === 'unknown' ? 'unknown' : formatDateTime(e.expiresAt)}`,
+                ];
+                if (e.teamName) parts.push(e.teamName);
+                return `Signing: ${parts.join(' · ')}`;
               })()}
             </Text>
             <Text style={text.h2}>Scheduled in AlarmKit ({scheduled.length})</Text>

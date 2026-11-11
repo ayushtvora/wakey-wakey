@@ -3,7 +3,12 @@ import AlarmKit, { type SigningInfo } from '../../modules/alarm-kit';
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-export type ExpiryLevel = 'ok' | 'soon' | 'urgent' | 'expired';
+/**
+ * 'unknown': the known expiry date has passed, yet the app is running, so it was refreshed in
+ * SideStore without the "Record SideStore Refresh" Shortcuts action and the real date is
+ * unknown. (An install that has really expired doesn't open at all.)
+ */
+export type ExpiryLevel = 'ok' | 'soon' | 'urgent' | 'unknown';
 
 export interface ExpiryStatus extends SigningInfo {
   msLeft: number;
@@ -25,7 +30,7 @@ export function getExpiryStatus(now = Date.now()): ExpiryStatus | null {
   if (!info) return null;
   const msLeft = info.expiresAt - now;
   const level: ExpiryLevel =
-    msLeft <= 0 ? 'expired' : msLeft <= DAY ? 'urgent' : msLeft <= 3 * DAY ? 'soon' : 'ok';
+    msLeft <= 0 ? 'unknown' : msLeft <= DAY ? 'urgent' : msLeft <= 3 * DAY ? 'soon' : 'ok';
   return { ...info, msLeft, level };
 }
 
