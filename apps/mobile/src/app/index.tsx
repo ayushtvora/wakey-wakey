@@ -8,7 +8,7 @@ import { Button, Card, colors, text } from '../components/ui';
 import { formatDateTime, formatTime } from '../lib/format';
 import { describeTimeLeft, getExpiryStatus } from '../lib/signing';
 import { setAlarmEnabled, useAppState } from '../lib/store';
-import { computeStreaks, reconcile } from '../lib/wake';
+import { afterAlarmChange, computeStreaks, reconcile } from '../lib/wake';
 
 export default function Home() {
   const { alarms } = useAppState();
@@ -100,7 +100,7 @@ export default function Home() {
                   </View>
                   <Switch
                     value={a.enabled}
-                    onValueChange={(v) => setAlarmEnabled(a.id, v)}
+                    onValueChange={(v) => setAlarmEnabled(a.id, v).then(afterAlarmChange)}
                     trackColor={{ true: colors.accent, false: colors.cardRaised }}
                   />
                 </View>

@@ -11,10 +11,12 @@ import {
   type WakeRecord,
 } from '@wakey/core';
 
+import { Alert } from 'react-native';
+
 import AlarmKit, { type WakeSession } from '../../modules/alarm-kit';
 import { scheduleExpiryReminders } from './signing';
 import { getState, replaceAlarms, syncNative, updateSettings, type StoredAlarm } from './store';
-import { syncWatchdog, watchdogActive } from './watchdog';
+import { getWatchdogInfo, syncWatchdog, watchdogActive, watchdogConfigured } from './watchdog';
 
 const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 /** Don't send punishments for mornings older than this (e.g. the app wasn't opened for days). */
@@ -76,13 +78,43 @@ export async function sendDiscord(url: string, payload: { content: string; usern
 }
 
 let running: Promise<void> | null = null;
+let queued: Promise<void> | null = null;
 
-/** Safe to call often; concurrent calls share one run. */
+/**
+ * Runs reconciliation. If a run is already going, it may have read the alarms before a change
+ * the caller just made, so one more run is queued after it (at most one).
+ */
 export function reconcile(): Promise<void> {
-  running ??= doReconcile().finally(() => {
-    running = null;
-  });
-  return running;
+  if (!running) {
+    running = doReconcile().finally(() => {
+      running = null;
+    });
+    return running;
+  }
+  queued ??= running
+    .catch(() => {})
+    .then(() => {
+      queued = null;
+      return reconcile();
+    });
+  return queued;
+}
+
+/**
+ * Call after the user turns an alarm on or off, edits it or deletes it. The watchdog punishes
+ * every alarm time it was last told about, so the new schedule has to reach it before the old
+ * ring time. Warns if it couldn't be reached.
+ */
+export async function afterAlarmChange(): Promise<void> {
+  await reconcile().catch(() => {});
+  if (!watchdogConfigured()) return;
+  const { error } = getWatchdogInfo();
+  if (!error) return;
+  Alert.alert(
+    "Couldn't update the watchdog",
+    `${error}. It still has your old alarm times and will post to Discord if one of them isn't finished. ` +
+      'Open the app again with internet before the next alarm.',
+  );
 }
 
 async function doReconcile(): Promise<void> {

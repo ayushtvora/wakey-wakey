@@ -9,6 +9,7 @@ import { ChainEditor } from '../../components/ChainEditor';
 import { Button, Chip, SectionTitle, Stepper, colors, text } from '../../components/ui';
 import { deleteAlarm, getAlarm, newAlarm, saveAlarm, toSpec, type StoredAlarm } from '../../lib/store';
 import { reportTestAlarm } from '../../lib/watchdog';
+import { afterAlarmChange } from '../../lib/wake';
 
 const DAY_LABELS: [Weekday, string][] = [
   [1, 'M'],
@@ -37,6 +38,7 @@ export default function EditAlarm() {
     setErrors(problems);
     if (problems.length > 0) return;
     await saveAlarm({ ...alarm, enabled: existing ? alarm.enabled : true });
+    void afterAlarmChange();
     router.back();
   };
 
@@ -48,6 +50,7 @@ export default function EditAlarm() {
         style: 'destructive',
         onPress: async () => {
           await deleteAlarm(alarm.id);
+          void afterAlarmChange();
           router.back();
         },
       },
@@ -59,6 +62,7 @@ export default function EditAlarm() {
     if (problems.length > 0) return;
     // Save first so the challenge screen finds this exact chain when the test alarm rings.
     await saveAlarm(alarm);
+    void afterAlarmChange();
     await AlarmKit.scheduleTestAlarm(toSpec(alarm), 60);
     await reportTestAlarm(alarm, Date.now() + 60_000);
     Alert.alert('Test alarm set', 'It will ring in about 1 minute. Lock your phone to try the full flow.');
