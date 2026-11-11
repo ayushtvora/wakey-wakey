@@ -70,8 +70,8 @@ export default function Home() {
           </Text>
           <Text style={text.body}>
             {expiry.level === 'expired'
-              ? 'Alarms will not ring. Reinstall with Sideloadly now.'
-              : `On ${formatDateTime(expiry.expiresAt)} the app stops opening and your alarms stop ringing. Reinstall with Sideloadly (or refresh in SideStore) before then.`}
+              ? 'Alarms will not ring. Refresh it in SideStore (or reinstall with Sideloadly) now.'
+              : `On ${formatDateTime(expiry.expiresAt)} the app stops opening and your alarms stop ringing. Refresh it in SideStore (or reinstall with Sideloadly) before then.`}
           </Text>
         </Card>
       ) : null}

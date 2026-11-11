@@ -86,7 +86,7 @@ enum WakeySigning {
       let content = UNMutableNotificationContent()
       content.title = "\(appName) expires \(expiryText)"
       content.body =
-        "Reinstall it with Sideloadly (or refresh in SideStore) before then. After it expires, the app won't open and your alarms won't ring."
+        "Refresh it in SideStore (or reinstall with Sideloadly) before then. After it expires, the app won't open and your alarms won't ring."
       content.sound = .default
       let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
       let request = UNNotificationRequest(
