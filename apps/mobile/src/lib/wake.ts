@@ -16,7 +16,7 @@ import { Alert } from 'react-native';
 import AlarmKit, { type WakeSession } from '../../modules/alarm-kit';
 import { scheduleExpiryReminders } from './signing';
 import { getState, replaceAlarms, syncNative, updateSettings, type StoredAlarm } from './store';
-import { getWatchdogInfo, syncWatchdog, watchdogActive, watchdogConfigured } from './watchdog';
+import { getWatchdogInfo, syncWatchdog, watchdogActive } from './watchdog';
 
 const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 /** Don't send punishments for mornings older than this (e.g. the app wasn't opened for days). */
@@ -107,7 +107,7 @@ export function reconcile(): Promise<void> {
  */
 export async function afterAlarmChange(): Promise<void> {
   await reconcile().catch(() => {});
-  if (!watchdogConfigured()) return;
+  if (!getState().settings.punishmentEnabled) return;
   const { error } = getWatchdogInfo();
   if (!error) return;
   Alert.alert(

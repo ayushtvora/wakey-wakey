@@ -9,7 +9,7 @@ import { formatDateTime } from '../lib/format';
 import { getExpiryStatus } from '../lib/signing';
 import { updateSettings, useAppState } from '../lib/store';
 import { reconcile, sendDiscord, toWakeRecord } from '../lib/wake';
-import { fetchWatchdogStatus, getWatchdogInfo, watchdogActive, watchdogConfigured } from '../lib/watchdog';
+import { fetchWatchdogStatus, getWatchdogInfo, watchdogActive } from '../lib/watchdog';
 
 export default function Settings() {
   const { settings } = useAppState();
@@ -106,36 +106,16 @@ export default function Settings() {
       <SectionTitle>Watchdog</SectionTitle>
       <Card>
         <Text style={text.body}>
-          A small always-on server that knows your alarm times and posts to Discord at the deadline if this phone
-          hasn't reported you finished.
+          An always-on server that knows your alarm times and posts to Discord at the deadline if this phone
+          hasn't reported you finished. It connects by itself; nothing to set up.
         </Text>
-        <TextInput
-          style={styles.input}
-          value={settings.watchdogUrl ?? ''}
-          onChangeText={(watchdogUrl) => updateSettings({ watchdogUrl })}
-          placeholder="Watchdog URL (https://…workers.dev)"
-          placeholderTextColor={colors.muted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-        />
-        <TextInput
-          style={styles.input}
-          value={settings.watchdogKey ?? ''}
-          onChangeText={(watchdogKey) => updateSettings({ watchdogKey })}
-          placeholder="Watchdog key"
-          placeholderTextColor={colors.muted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-        />
         <Button
-          label={checking ? 'Connecting…' : 'Connect and send schedule'}
+          label={checking ? 'Syncing…' : 'Sync now'}
           variant="secondary"
-          disabled={!watchdogConfigured(settings) || checking}
+          disabled={checking}
           onPress={connectWatchdog}
         />
-        {watchdogConfigured(settings) ? <WatchdogInfo info={watchdog} lastSyncAt={settings.lastWatchdogSyncAt} /> : null}
+        <WatchdogInfo info={watchdog} lastSyncAt={settings.lastWatchdogSyncAt} />
       </Card>
 
       <SectionTitle>History</SectionTitle>
