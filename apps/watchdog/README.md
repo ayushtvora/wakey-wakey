@@ -20,17 +20,27 @@ Pushing to `main` deploys automatically (`.github/workflows/watchdog.yml`) once 
 `CLOUDFLARE_API_TOKEN` is set. To deploy by hand from this folder:
 
 ```sh
-npx wrangler login                    # once; opens the browser
-npx wrangler secret put WATCHDOG_TOKEN  # paste a long random key
+npx wrangler login    # once; opens the browser
 npx wrangler deploy
 ```
 
-Then in the app: Settings → Watchdog, enter the `https://wakey-watchdog.<account>.workers.dev`
-URL and the same key, and tap **Connect and send schedule**.
+The app has the Worker's URL built in (`WATCHDOG_URL` in `apps/mobile/src/lib/watchdog.ts`);
+change it there if the Worker moves.
+
+## Accounts
+
+Each phone has its own schedule, in its own Durable Object. On first use the app makes a random
+device ID (128 bits) and secret (256 bits) and sends `Authorization: Bearer <deviceId>:<secret>`.
+The first request for a device ID stores the secret's SHA-256; later requests must match it.
+There is no sign-up. Since anyone can make an account, the Worker only posts to Discord webhook
+URLs.
+
+Legacy: the `WATCHDOG_TOKEN` secret still opens the single shared schedule (`main`) that app
+builds before accounts used. Newer apps switch that schedule off once their own account works.
 
 ## API
 
-All requests except `/health` need `Authorization: Bearer <WATCHDOG_TOKEN>`.
+All requests except `/health` need the `Authorization` header above.
 
 | Method | Path | Body | |
 |---|---|---|---|

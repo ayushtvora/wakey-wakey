@@ -19,9 +19,11 @@ export interface Settings {
   punishmentEnabled: boolean;
   /** epoch ms: missed-morning detection has covered everything up to here. */
   lastReconciledAt?: number;
-  /** Watchdog Worker URL, e.g. https://wakey-watchdog.<account>.workers.dev */
+  /** This install's watchdog account (random; made on first use, see watchdog.ts). */
+  watchdogDeviceId?: string;
+  watchdogSecret?: string;
+  /** Legacy: typed-in watchdog URL and shared key, cleared once the old schedule is switched off. */
   watchdogUrl?: string;
-  /** Shared secret (the Worker's WATCHDOG_TOKEN). */
   watchdogKey?: string;
   /** epoch ms of the last successful sync with the watchdog. */
   lastWatchdogSyncAt?: number;

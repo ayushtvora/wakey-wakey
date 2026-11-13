@@ -9,7 +9,7 @@ import { formatDateTime, formatTime } from '../lib/format';
 import { describeTimeLeft, getExpiryStatus } from '../lib/signing';
 import { setAlarmEnabled, useAppState } from '../lib/store';
 import { afterAlarmChange, computeStreaks, reconcile } from '../lib/wake';
-import { watchdogConfigured } from '../lib/watchdog';
+import { watchdogOutOfDate } from '../lib/watchdog';
 
 export default function Home() {
   const { alarms, settings } = useAppState();
@@ -75,12 +75,14 @@ export default function Home() {
         </Card>
       ) : null}
 
-      {!watchdogConfigured(settings) ? (
+      {watchdogOutOfDate(Date.now(), settings) ? (
         <Card style={[styles.warning, { borderColor: colors.danger }]}>
-          <Text style={text.h2}>⚠️ Watchdog not connected</Text>
+          <Text style={text.h2}>⚠️ Watchdog can&apos;t be reached</Text>
           <Text style={text.body}>
-            The watchdog can&apos;t see your alarm changes, and it keeps posting to Discord for the last schedule it
-            was sent. Add its URL and key in Settings.
+            {settings.lastWatchdogSyncAt
+              ? `It last got your alarms ${formatDateTime(settings.lastWatchdogSyncAt)}, so it doesn't know about changes since then.`
+              : "It hasn't got your alarms yet."}{' '}
+            Check this phone&apos;s internet connection; Settings → Watchdog shows the error.
           </Text>
           <Button label="Open Settings" onPress={() => router.push('/settings')} />
         </Card>
