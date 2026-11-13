@@ -7,6 +7,9 @@ const isDev = process.env.APP_VARIANT === 'development';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...(config as ExpoConfig),
+  // SideStore only offers an update when the version string changes (it ignores the build
+  // number), so every CI build gets its own version: 1.0.<run number>.
+  ...(process.env.BUILD_NUMBER ? { version: `1.0.${process.env.BUILD_NUMBER}` } : {}),
   scheme: isDev ? 'wakeywakey-dev' : 'wakeywakey',
   ios: {
     ...config.ios,
