@@ -116,6 +116,17 @@ public final class WakeyAlarmController: @unchecked Sendable {
     static let kvPrefix = "wakey.kv."
   }
 
+  init() {
+    if WakeyBackup.restoreIfEmpty(into: defaults) {
+      log("Restored settings, alarms and history from the Keychain backup")
+    }
+  }
+
+  /// Copies the app's data to the Keychain so a reinstall gets it back (see WakeyBackup).
+  private func backUp() {
+    WakeyBackup.save(from: defaults)
+  }
+
   private lazy var intentProvider: WakeyIntentProviding? = {
     guard let cls = NSClassFromString("WakeyIntentProvider") as? WakeyIntentProviding.Type else {
       log("ERROR: WakeyIntentProvider class not found in app target")
@@ -291,6 +302,7 @@ public final class WakeyAlarmController: @unchecked Sendable {
     }
     set {
       if let data = try? JSONEncoder().encode(newValue) { defaults.set(data, forKey: Key.punishment) }
+      backUp()
     }
   }
 
@@ -343,6 +355,7 @@ public final class WakeyAlarmController: @unchecked Sendable {
   public func getItem(_ key: String) -> String? { defaults.string(forKey: Key.kvPrefix + key) }
   public func setItem(_ key: String, _ value: String?) {
     if let value { defaults.set(value, forKey: Key.kvPrefix + key) } else { defaults.removeObject(forKey: Key.kvPrefix + key) }
+    backUp()
   }
 
   // MARK: - Debug log
@@ -531,6 +544,7 @@ public final class WakeyAlarmController: @unchecked Sendable {
     sessions.sort { $0.firstRangAt < $1.firstRangAt }
     if sessions.count > Self.maxStoredSessions { sessions.removeFirst(sessions.count - Self.maxStoredSessions) }
     if let data = try? JSONEncoder().encode(sessions) { defaults.set(data, forKey: Key.sessions) }
+    backUp()
   }
 
   private func loadScheduled() -> [String: ScheduledInfo] {

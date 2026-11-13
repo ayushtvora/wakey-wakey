@@ -9,9 +9,10 @@ import { formatDateTime, formatTime } from '../lib/format';
 import { describeTimeLeft, getExpiryStatus } from '../lib/signing';
 import { setAlarmEnabled, useAppState } from '../lib/store';
 import { afterAlarmChange, computeStreaks, reconcile } from '../lib/wake';
+import { watchdogConfigured } from '../lib/watchdog';
 
 export default function Home() {
-  const { alarms } = useAppState();
+  const { alarms, settings } = useAppState();
   const [history, setHistory] = useState<WakeSession[]>([]);
   const [active, setActive] = useState<WakeSession | null>(null);
   const [auth, setAuth] = useState(AlarmKit.getAuthorizationState());
@@ -71,6 +72,17 @@ export default function Home() {
               ? ` Last refresh: ${formatDateTime(expiry.lastRefreshAt)}. Check that your Refresh Wakey shortcut is still running.`
               : ''}
           </Text>
+        </Card>
+      ) : null}
+
+      {!watchdogConfigured(settings) ? (
+        <Card style={[styles.warning, { borderColor: colors.danger }]}>
+          <Text style={text.h2}>⚠️ Watchdog not connected</Text>
+          <Text style={text.body}>
+            The watchdog can&apos;t see your alarm changes, and it keeps posting to Discord for the last schedule it
+            was sent. Add its URL and key in Settings.
+          </Text>
+          <Button label="Open Settings" onPress={() => router.push('/settings')} />
         </Card>
       ) : null}
 
