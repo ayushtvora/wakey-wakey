@@ -110,7 +110,10 @@ public final class WakeyAlarmController: @unchecked Sendable {
   private enum Key {
     static let scheduled = "wakey.scheduled"
     static let sessions = "wakey.sessions"
-    static let handled = "wakey.handledAlarmIds"
+    /// Legacy set of IDs without times; a leftover entry swallowed the next day's Stop.
+    static let handledLegacy = "wakey.handledAlarmIds"
+    /// alarm ID -> when Start challenge was pressed (epoch seconds)
+    static let handled = "wakey.handledAt"
     static let punishment = "wakey.punishment"
     static let log = "wakey.debugLog"
     static let kvPrefix = "wakey.kv."
@@ -556,19 +559,29 @@ public final class WakeyAlarmController: @unchecked Sendable {
     if let data = try? JSONEncoder().encode(scheduled) { defaults.set(data, forKey: Key.scheduled) }
   }
 
+  /// How long after Start challenge a Stop for the same alarm counts as the system's own stop
+  /// of that alert. A recurring alarm keeps its ID every day, so the mark must not outlive the
+  /// ring it was made for: a Stop that iOS never sent would otherwise swallow the next morning's.
+  static let handledWindow: TimeInterval = 30
+
   private func markHandled(_ id: String) {
     lock.lock(); defer { lock.unlock() }
-    var ids = Set(defaults.stringArray(forKey: Key.handled) ?? [])
-    ids.insert(id.uppercased())
-    defaults.set(Array(ids), forKey: Key.handled)
+    var marks = defaults.dictionary(forKey: Key.handled) as? [String: Double] ?? [:]
+    let now = Date().timeIntervalSince1970
+    marks = marks.filter { now - $0.value < Self.handledWindow }
+    marks[id.uppercased()] = now
+    defaults.set(marks, forKey: Key.handled)
+    defaults.removeObject(forKey: Key.handledLegacy)
   }
 
+  /// True (once) if Start challenge was pressed on this alarm in the last `handledWindow`.
   private func consumeHandled(_ id: String) -> Bool {
     lock.lock(); defer { lock.unlock() }
-    var ids = Set(defaults.stringArray(forKey: Key.handled) ?? [])
-    guard ids.remove(id.uppercased()) != nil else { return false }
-    defaults.set(Array(ids), forKey: Key.handled)
-    return true
+    defaults.removeObject(forKey: Key.handledLegacy)
+    var marks = defaults.dictionary(forKey: Key.handled) as? [String: Double] ?? [:]
+    guard let at = marks.removeValue(forKey: id.uppercased()) else { return false }
+    defaults.set(marks, forKey: Key.handled)
+    return Date().timeIntervalSince1970 - at < Self.handledWindow
   }
 
   private func short(_ id: String) -> String { String(id.prefix(8)) }
